@@ -1,0 +1,3 @@
+service lustre_backup_service logshow \
+| grep -B 2 'WARNING\|ERROR'
+#| grep -v 'DEBUG\|INFO\| ..skipping '

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+BASE=/mnt/a/settools/lustrebackup
+LIBPATH=${BASE}/lib
+CONFDIR=${BASE}/conf
+
+pypathmunge () {
+  case ":${PYTHONPATH}:" in
+    *:"$1":*)
+      ;;
+    *)
+      if [ "$2" = "after" ] ; then
+        PYTHONPATH=$PYTHONPATH:$1
+      else
+        PYTHONPATH=$1:$PYTHONPATH
+      fi
+  esac
+}
+
+pypathmunge ${LIBPATH} after
+
+LSTRBKUPCONFDIR=${CONFDIR} \
+PYTHONPATH=${PYTHONPATH} \
+${LIBPATH}/lstrbkup/lustre_backup.py ${0} $*

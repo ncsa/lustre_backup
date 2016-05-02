@@ -1,0 +1,106 @@
+#!/bin/bash
+
+# ROOT CRONTAB
+# 03 12 * * * /mnt/a/settools/lustrebackup/cron/bkup_report
+# 1>/u/system/backup/reports/cron_bkup_report.log 2>&1
+
+DEBUG=0
+
+BASE=/mnt/a/settools/lustrebackup
+BIN=$BASE/bin
+PYTHONPATH=$BASE/lib
+DATE=$( date "+%Y%m%d_%H%M%S" )
+REPORT_DIR=/u/system/backup/reports
+OUTPUT_FILES=()
+EMAIL_RECIPIENTS="bwbackup@ncsa.illinois.edu"
+EMAIL_SUBJECT="BW Backup Reports"
+
+function croak {
+  echo "ERROR: " "${*}" >&2
+  exit 99
+}
+
+function check_root {
+  [[ $DEBUG -gt 0 ]] && set -x
+  eff_uid=$( id -u)
+  [[ $eff_uid != 0 ]] && croak "Must be root."
+}
+
+#function install_python_pip {
+#  [[ $DEBUG -gt 0 ]] && set -x
+#  yum -y -q install /cm/shared/tmp/ajl/python-pip-1.3.1-4.el6.noarch.rpm
+#}
+
+function check_python_pip {
+  [[ $DEBUG -gt 0 ]] && set -x
+  rv=1
+  count=$( rpm -qa | grep python-pip | wc -l )
+#  if [[ $count -lt 1 ]] ; then
+#    install_python_pip
+#    count=$( rpm -qa | grep python-pip | wc -l )
+#  fi
+  [[ $count -gt 0 ]] && rv=0
+  return $rv
+}
+
+function install_peewee {
+  [[ $DEBUG -gt 0 ]] && set -x
+  pip-python -q install peewee
+}
+
+function check_peewee {
+  [[ $DEBUG -gt 0 ]] && set -x
+  rv=1
+  count=$( pip-python freeze | grep peewee | wc -l )
+  if [[ $count -lt 1 ]] ; then
+    install_peewee
+    count=$( pip-python freeze | grep peewee | wc -l )
+  fi
+  [[ $count -gt 0 ]] && rv=0
+  return $rv
+}
+
+cd $REPORT_DIR
+
+[[ $DEBUG -gt 0 ]] && set -x
+
+# Must be root to run this
+check_root
+
+# Install dependencies if running on an IE node
+hn=$(hostname)
+if [[ $hn == ie* ]]; then
+  # Verify python-pip is installed
+  check_python_pip || croak "python-pip not found or failed install"
+  
+  # Verify peewee is installed
+  check_peewee
+fi
+
+# Verify PYTHONPATH
+export PYTHONPATH
+
+# Clean & Update database
+/usr/bin/python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
+$BIN/yabu_collect_stats.py
+
+# Generate reports
+for str in basepaths daily; do
+  pgm=yabu_rpt_$str
+  cmd=$BIN/${pgm}.py
+  out_fn=${pgm}.${DATE}.txt
+  $cmd > $out_fn
+  OUTPUT_FILES[${#OUTPUT_FILES}]=$out_fn
+done
+
+# Create attachments
+attach_opts=()
+for fn in "${OUTPUT_FILES[@]}"; do
+  attach_opts[${#attach_opts[*]}]="-a"
+  attach_opts[${#attach_opts[*]}]="$fn"
+done
+
+#Mail reports
+/bin/mail -s "$EMAIL_SUBJECT" ${attach_opts[@]} $EMAIL_RECIPIENTS <<EOF
+See attached files.
+EOF
