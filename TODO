@@ -1,0 +1,272 @@
+
+ID Project                 Description                               Tags    PRI
+-- ----------------------- ----------------------------------------- ------- ---
+61 bw.bkup                 Adjust kernel shared memory parameters in         H
+                           install_backup.sh script.
+                             3/4/2014 sysctl
+                           kernel.shmmax=68719476736
+                             3/4/2014 sysctl
+                           kernel.shmall=68719476736
+64 bw.bkup                 How to track dar memory usage throughout
+                           process execution?
+                             3/17/2014 Perhaps monitor process every
+                           1 or 2 seconds and keep track of max
+                           used.
+70 bw.bkup                 lustre_backup_service rmlogs action
+                           should not remove current log file, just
+                           old logs that have a date suffix
+58 bw.bkup                 Add end _date in backup_info file.        DELETE
+                             2/17/2014 Do this in backup cleanup
+                           phase.
+ 6 bw.bkup                 Make dar.py Luster aware to retain lustre ER
+                           stripe info
+                             12/11/2012 Can this be added to the
+                           catalog XML file?
+                             2/12/2013 Could this use lustre-aware
+                           tar?
+ 7 bw.bkup                 Perform differential backups, instead of  ER
+                           incremental, until size is large enough
+                           to justify a new full.
+                             2/12/2013 See also notes about using
+                           retention policy to determine frequency
+                           of full backups.
+19 bw.bkup                 Retention policy - adjustable for each    ER
+                           topdir
+                             2/12/2013 Perhaps even allow
+                           customizable for specific subdirs (
+                           otherwise use default of parent topdir).
+20 bw.bkup                 Use value of retention policy to          ER
+                           calculate frequency of full backups.
+                             2/12/2013 Idea is to do fewer fulls for
+                           dirs with longer retention policy.
+55 bw.bkup                 Fix mk_archive_elapsed_seconds            V1      H
+                           calculation to use output file last mod
+                           time, resulting in better accuracy.
+56 bw.bkup                 Fix mk_catalog_elapsed_seconds            V1      H
+                           calculation to use output file last mod
+                           time, resulting in better accuracy.
+57 bw.bkup                 Add start _date in backup_info file.      V1      H
+59 bw.bkup                 Add update to infofile.last_status_check  V1      H
+                           when checking transfer status .
+65 bw.bkup                 Why dont INCR start as soon as all FULLs  V1      M
+                           are started?
+15 bw.bkup                 Should all 'status types' go into a       V1      L
+                           single file
+62 bw.bkup                 Add on-fly catalogue isolation to remove  V2
+                           separate step of catalogue isolation.
+                             3/4/2014 See on-fly-isolate option
+63 bw.bkup                 Add better tracking to DAR module.        V2
+                             3/14/2014 Use start _time and file last
+                           mtime to calculate an accurate elapsed
+                           time for both archive and catalog
+                           operations.
+                             3/14/2014 Use dar to generate a summary
+                           of the operation and save it to the
+                           infofile.
+66 bw.bkup                 Add support for filelist to dar backup    V2
+                           module
+67 bw.bkup                 Remove stripe size on BW backup archive   V2
+                           areas
+                             5/23/2014 By setting dar slice size to
+                           32G, no need for lustre striping.
+32 bw.bkup.Cleanup         Implement cleanup_old_backups.
+37 bw.bkup.Cleanup         Script to purge old files from backup
+                           directories.
+                             9/9/2013 \/projects\/backup\/work
+                             9/9/2013 \/u\/system\/backup\/archive
+                             9/9/2013 \/u\/system\/backup\/restore
+25 bw.bkup.Cleanup         Remove cleanup from dar.py.               V1
+                             3/4/2013 Move to it's own module?
+21 bw.bkup.CmdInjection    Add ability to pause mgmt process.
+                             2/13/2013 Most likely can/should be
+                           included with control injection.
+ 9 bw.bkup.CmdInjection    Support for commands to be sent to the    V2
+                           running manager.
+                             12/11/2012 Could be used for getting
+                           live status , read config file on the
+                           fly, inject events, etc...
+18 bw.bkup.DarSlices       DarBackup set slice size to 32GiB         V1
+23 bw.bkup.Design          Convert all function names to lowercase
+                           with underscores, no CamelCase.
+24 bw.bkup.Design          Protect access to shared files, such as
+                           baseapath_id_map, globus_transfer_file,
+                           etc.
+31 bw.bkup.Design          Convert serviceprovider to module.
+60 bw.bkup.Design          Add support to lustre_backup_service to
+                           stop only if busy. Will need force_stop
+                           as an override.
+73 bw.bkup.Design          LockFileIntegrityError should not be
+                           fatal, log a warning and continue.
+ 8 bw.bkup.Design          Add support for per-host ip:port          ER
+ 4 bw.bkup.Design          Move is_filesize_changing to              V1
+                           serviceprovider
+12 bw.bkup.Design          Figure out interpolation for              V1
+                           lustre_backup.cfg to use references to
+                           archive_dir later in the file.
+43 bw.bkup.FailureTracking Add functions to dar.py to be able to
+                           post-process success/failure of a
+                           previous backup.
+                             10/10/2013 Should this be in
+                           backup_dir.py instead?
+                             10/10/2013 dar.py will know how to
+                           analyze a single dar backup for success
+                           or failure reason.
+                             10/10/2013 backup_dir will call
+                           dar.get_failure_reason only if the
+                           failure type was dar_failed or
+                           catalog_failed.
+44 bw.bkup.FailureTracking Backup_Dir.get_failure_reason
+45 bw.bkup.FailureTracking Dar.get_failure_reason
+46 bw.bkup.FailureTracking If a transfer fails, check if file
+                           exists, then try a new transfer.
+47 bw.bkup.FailureTracking How to recognize dar completed when mgr
+                           dies bsystemt dar completes successfully
+                           on service node?
+                             10/21/2013 backup.info status =
+                           dar_started
+                             10/21/2013 Check
+                           backup/archive/u/sciteam/droe/20131017_1-
+                           61727
+                             10/21/2013 current procedure delets the
+                           old file and starts a new one for today.
+                             10/21/2013 Need to be able to verify if
+                           archive is stable ( usable). Delete if
+                           unstable, keep it and move forward if
+                           it's stable.
+ 1 bw.bkup.FailureTracking Implement scan for failed backups         V1
+                             12/13/2012 Do this every
+                           StartOfDayEvent.
+10 bw.bkup.FailureTracking Add config value for BackupPastDue        V1
+                             12/11/2012 Number of secs since last
+                           successful backup to consider a backup
+                           broken.
+13 bw.bkup.FailureTracking In dar._recover_from_backup check the log V1
+                           file to see if the previous dar process
+                           completed successfully, before monitoring
+                           the output file for size changes.
+16 bw.bkup.FailureTracking ScanForFailedBackups - Ok to delete locks V1
+                           from files with completed txfr if lock
+                           file older than 3600 secs.
+28 bw.bkup.FailureTracking Dump failure reason to backup.info file   V1
+                           for all failures, where appropriate.
+30 bw.bkup.FailureTracking ScanForFailedBackups - Check backup.info  V1
+                           for failure 'reason' so can clean up
+                           known failures such as filesystemerrors
+                           but leave unknown 'reason' s alone.
+14 bw.bkup.FailureTracking Verify stop_subprocess works properly.    V1 bug
+ 5 bw.bkup.ParallelBkups   use list of files for incremental backup
+                             2/12/2013 Filelist to come from
+                           robinhood.
+49 bw.bkup.RemoteThreads   RemoteHost.connect doesnt currently check
+                           for existing connection before attempting
+                           new connection. Is this is problem?
+50 bw.bkup.RemoteThreads   RemoteHost.isPingable doesnt actually
+                           ping. Either change name or add ping.
+                             10/28/2013 rpyc.Connection has a ping
+                           method.
+51 bw.bkup.RemoteThreads   Change JobManager scheduling algorithm
+                           regarding busy/free/down hosts.
+                             10/30/2013 Keep downHosts list. Needed
+                           to scale to a large number of hosts.
+                             10/30/2013 Hosts that are down get
+                           added to downHosts list. Check these
+                           every semiDayEvent.
+                             10/30/2013 Available hosts get added to
+                           availHosts list. When a job is scheduled
+                           on a host, that host moves to end of
+                           availHosts list.
+                             10/30/2013 If a host on availHosts list
+                           does not haveJobSlot, then put on
+                           busyHosts list.
+                             10/30/2013 When a
+                           remoteHostCompletedEvent is received,
+                           move host from busyHosts list to
+                           availHosts list ( allowing that host
+                           might not be on busyHosts list, which
+                           might be the case if host can run more
+                           than one job and was full at a point in
+                           time.)
+                             10/30/2013 Check busyHosts list each
+                           semiDayEvent for nodes that can move to
+                           availHosts ( or downHosts) list. This is
+                           needed for the cases of ( remote host
+                           restarts, mgr restarts and a remote host
+                           is still full).
+ 2 bw.bkup.RemoteThreads   jobmanager - check down hosts             ER
+                             11/26/2012 Added code. Need to test
+                             12/13/2012 Configure to run every
+                           StartOfHourEvent.
+                             12/13/2012 Can use manual event
+                           injection to force a check.
+11 bw.bkup.RemoteThreads   jobmanager - check problem hosts          ER
+22 bw.bkup.RemoteThreads   Move transfer start , complete, cleanup   ER
+                           actions to RemoteHost.
+                             2/15/2013 Will require thread-safe
+                           access to globus_transfer_list file.
+ 3 bw.bkup.RemoteThreads   How to handle remote_host still working   V1
+                           upon local client startup, after crash
+                           for instance
+                             12/13/2012 Does connect fail? If no,
+                           maybe implement check for working
+                           process.
+                             12/13/2012 This is also related to
+                           'scan for failed backups' to
+                           differentiate hung procs from still in
+                           progress.
+                             2/12/2013 RemoteHost will accept
+                           additional incoming connections and run
+                           multipl processes.
+                             2/12/2013 Maybe add a counter to
+                           LustreBackupService and a method to query
+                           running processes.
+17 bw.bkup.RemoteThreads   JobManager: use or remove activate_host   V1
+26 bw.bkup.RemoteThreads   Add LustreBackupService.status_report     V1 V1.1
+                           functionality.
+                             3/4/2013 jobmanager can check for
+                           status of a down host or busy host.
+                             3/4/2013 jobmanager can check for host
+                           status on startup. This would be for a
+                           crashed manager node that is starting and
+                           remote hosts may already be running jobs.
+                             3/4/2013 Can callback be
+                           updated/replaced on a remote host for a
+                           job already started?
+27 bw.bkup.RemoteThreads   Add LustreBackupService.ready_for_job     V1 V1.1
+                           functionality to allow for client crash
+                           and restart.
+                             10/24/2013 Working in branch
+                           addsemaphore.
+33 bw.bkup.report          Per basepath summaries
+                             9/27/2013 min, max, mean, median
+                           filesize per type
+                             9/27/2013 min,max,avg,median transfer
+                           time
+40 bw.bkup.report          Daily stats per-basepath
+                             9/27/2013 Num files copied
+                             9/27/2013 Num bytes copied
+                             9/27/2013 Elapsed backup time ( dar
+                           create + catalog create)
+                             9/27/2013 Num bytes transfered
+                             9/27/2013 Elapsed transfer time
+                             9/27/2013 dar filesize
+                             9/27/2013 catalog filesize
+41 bw.bkup.report          Daily summary report
+                             9/27/2013 total size of dars ( full &
+                           incremental)
+                             9/27/2013 total size of catalogs ( full
+                           & incremental)
+                             9/27/2013 total bytes in archive/work
+                           area
+                             9/27/2013 total size in hpss
+                             9/27/2013 min, max, mean, median
+                           filesize per type
+                             9/27/2013 Num files transfered
+                             9/27/2013 min,max,avg,median transfer
+                           time per type
+                             9/27/2013 Basepaths missing backups ie.
+                           last backup age greater than X hours
+                             9/27/2013 Num backups per type
+                             10/9/2013 Dirs with fewer than X
+                           successful backups.
+
+58 tasks
