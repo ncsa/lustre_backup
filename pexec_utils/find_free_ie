@@ -1,0 +1,34 @@
+#!/bin/bash
+
+BASE=/cm/shared/app/lustrebackup/pexec_utils
+
+. ${BASE}/find_funcs.sh
+
+hostnames=$( ${BASE}/find_service_nodes )
+# Exit if no busy nodes
+if [[ -z "${#hostnames}" ]]; then
+  echo "No service hosts found. Is lustre_backup_service running?" >&2
+  exit 1
+fi
+
+svcnodes=$( mk_pexec_list $hostnames )
+nodenames=$(
+  pexec -c -n $svcnodes -- \
+    'service lustre_backup_service logpeek | tail -n 1' \
+    | awk '/ goodbye | server started on | <<<Exit/ {print substr( $1, 1, 4 );}'
+)
+# Exit if no free nodes
+if [[ -z "${nodenames}" ]]; then
+  echo "No free nodes" >&2
+  exit 1
+fi
+
+# If no commands given, print node names and exit
+if [[ $# -lt 1 ]]; then
+  echo $nodenames
+  exit
+fi
+
+# Run remote command on each node
+nodelist=$( mk_pexec_list $nodenames )
+pexec -n $nodelist -- $*

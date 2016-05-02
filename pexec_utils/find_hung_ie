@@ -1,0 +1,10 @@
+#!/bin/bash
+
+BASE=/cm/shared/app/lustrebackup/pexec_utils
+
+. ${BASE}/find_funcs.sh
+
+nodelist=( $( $BASE/find_activebkup_ie ) )
+#oldIFS="$IFS"
+#IFS=','
+#echo "${nodelist[*]}"

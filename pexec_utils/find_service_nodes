@@ -1,0 +1,9 @@
+#!/bin/bash
+
+BASE=/cm/shared/app/lustrebackup/pexec_utils
+
+#set -x
+NODELIST="ie01..ie28"
+#NODELIST="ie01"
+pexec -c -n $NODELIST -- service lustre_backup_service status \
+  | awk '/is running with pid/ {print substr( $1, 1, 4 );}'
