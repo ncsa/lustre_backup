@@ -1,0 +1,9 @@
+#!/bin/bash
+
+
+awk 'BEGIN { found=0 }
+/^#/ { next }
+$1 ~ /\[TOPDIRS\]/ { found=1 }
+found == 1 && NF == 0 { exit }
+found == 1 && NF == 3 { system( "readlink -e " $1 ) }
+' /mnt/a/settools/lustrebackup/conf/lustre_backup.cfg

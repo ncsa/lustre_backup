@@ -1,0 +1,47 @@
+filenames=( $( ls -tr /var/log/lustre_backup_manager.log* ) )
+#filenames=( $( ls -tr /var/log/lustre_backup_manager.log ) )
+let "last_i = ${#filenames[*]} - 1"
+last_filename="${filenames[$last_i]}"
+
+awk -- '
+  BEGIN {
+    IGNORECASE=1;
+    prevmsg="";
+    match_count=0;
+    indent="................"
+  }
+  printme=0
+  /caught/ { printme=1 }
+#  /all fulls done/ { printme=1 }
+  /incremental backups now/ { printme=1 }
+  /WARNING|ERROR/ { printme=1 }
+  /FULLS_DONE.=.False/ { printme=1 }
+  /enable|disable/ { printme=1 }
+  /asyncResult returned value/ && $NF != "None" { printme=1 }
+#  /ls_hosts/ { printme=1 }
+  /calling boundMethod/ { next }
+  /too many pending jobs/ { next }
+  printme == 1 {
+#    printf( "CUR:%s PREV:%s\n", $NF, prevmsg )
+    if ( $NF == prevmsg ) {
+      ++match_count
+#      printf( "Match found, not printing, match_count now %d\n", match_count )
+      printme=0
+    } else {
+      if ( match_count > 0 ) { 
+        printf( "%sSkipped %d repeated lines.\n", indent, match_count ) 
+      }
+      print
+      match_count=0
+    }
+    prevmsg=$NF
+  }
+' "${filenames[@]}"
+
+echo "<NonFatalGlobusError (MSG:Unable to start new transfer) (code='409', reason='This user has too many pending jobs!')>"
+count409=$( grep "too many pending jobs" "$last_filename" | wc -l )
+printf " ....... repeated %d times\n" $count409
+
+grep -A 3 busyHosts "$last_filename" | tail -4
+
+grep "No More Events" "$last_filename" | tail -5

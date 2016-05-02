@@ -1,0 +1,71 @@
+DEPENDENCIES:
+- Python 2.6.*
+- rpyc (python-rpyc via yum on Redhat)
+- globusonline/transfer-api-client (github)
+  + swig (yum)
+  + m2crypto (yum)
+- dar (http://dar.linux.free.fr/)
+
+STATUS:
+- Full backups OK
+- Full backups get priority over Incrementals
+- Scan for full backups needed OK
+- Periodic, rolling fulls OK
+
+TODO:
+ID Project    Description                                               Tags PRI
+-- ---------- --------------------------------------------------------- ---- ---
+ 5 bw-bkup    Test incremental backup                                        H
+11 bw-bkup    Implement incremental backup                                   H
+                11/15/2012 Ready to test incremental backup.
+17 bw-bkup    Create stub for TransferBackup and CleanupBackup so that       H
+              incrementals can be tested.
+ 6 bw-bkup    Implement backup transfer                                      M
+32 bw-bkup    Add support for per-host ip:port                               M
+34 bw-bkup    Implement globus online wrapper                                M
+ 7 bw-bkup    Implement CleanupSuccessfulBackupEvent                         L
+ 8 bw-bkup    Implement scan_for_errors                                      L
+10 bw-bkup    Test backup recovery                                           L
+                11/8/2012 Recovered from 'dar started' state.
+16 bw-bkup    Add config settings for StartOfDay StartOfHour                 L
+                12/11/2012 Number of seconds between generating each
+              type of event.
+33 bw-bkup    Implement CleanupFailedBackupEvent                             L
+35 bw-bkup    Support for multiple backup topdirs                            L
+15 bw-bkup    jobmanager - check down hosts
+                11/26/2012 Added code. Need to test
+19 bw-bkup    Ticker should use value of incremental_frequency to
+              trigger startOfDayEvent
+20 bw-bkup    Add config value to control frequency of checking for
+              down hosts and problem backups
+21 bw-bkup    Add Server hostname/ip to config file. Maybe also
+              configurable port.
+                12/4/2012 Maybe ServiceProvider.get_my_ip_and_port
+                12/11/2012 This will remove the Python-2.7 dependency.
+22 bw-bkup    Add dar archive create rate to dar log.
+23 bw-bkup    How to handle remote_host still working upon local client
+              startup, after crash for instance
+24 bw-bkup    Move is_filesize_changing to serviceprovider
+27 bw-bkup    Install supporting software for backups on IE nodes
+38 bw-bkup    Add config value for BackupPastDue
+                12/11/2012 Number of secs since last successful backup
+              to consider a backup broken.
+39 bw-bkup    jobmanager - check problem hosts
+
+ENHANCEMENTS:
+25 bw-bkup-er use list of files for incremental backup
+26 bw-bkup-er Make dar.py Luster aware to retain lustre stripe info
+                12/11/2012 Can this be added to the catalog XML file?
+28 bw-bkup-er Get list of changed files from robinhood
+29 bw-bkup-er Perform differential backups, instead of incremental,
+              until size is large enough to justify a new full.
+30 bw-bkup-er Add Python native logging.
+31 bw-bkup-er Support for multi-file dar archives.
+36 bw-bkup-er Support for partial dar recovery.
+                12/11/2012 If a full was interrupted, but exited
+              cleanly, do an incremental then merge for a complete full
+37 bw-bkup-er Support for commands to be sent to the running manager.
+                12/11/2012 Could be used for getting live status , re
+              config file on the fly, inject events, etc...
+
+30 tasks
