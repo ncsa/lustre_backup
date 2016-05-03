@@ -82,11 +82,11 @@ export PYTHONPATH
 
 # Clean & Update database
 /usr/bin/python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
-$BIN/yabu_collect_stats.py
+$BIN/collect_stats.py
 
 # Generate reports
 for str in basepaths daily; do
-  pgm=yabu_rpt_$str
+  pgm=rpt_$str
   cmd=$BIN/${pgm}.py
   out_fn=${pgm}.${DATE}.txt
   $cmd > $out_fn
