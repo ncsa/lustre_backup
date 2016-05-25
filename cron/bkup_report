@@ -15,6 +15,8 @@ OUTPUT_FILES=()
 EMAIL_RECIPIENTS="bwbackup@ncsa.illinois.edu"
 EMAIL_SUBJECT="BW Backup Reports"
 
+PIP=/usr/bin/pip
+
 function croak {
   echo "ERROR: " "${*}" >&2
   exit 99
@@ -26,35 +28,26 @@ function check_root {
   [[ $eff_uid != 0 ]] && croak "Must be root."
 }
 
-#function install_python_pip {
-#  [[ $DEBUG -gt 0 ]] && set -x
-#  yum -y -q install /cm/shared/tmp/ajl/python-pip-1.3.1-4.el6.noarch.rpm
-#}
-
 function check_python_pip {
   [[ $DEBUG -gt 0 ]] && set -x
   rv=1
   count=$( rpm -qa | grep python-pip | wc -l )
-#  if [[ $count -lt 1 ]] ; then
-#    install_python_pip
-#    count=$( rpm -qa | grep python-pip | wc -l )
-#  fi
   [[ $count -gt 0 ]] && rv=0
   return $rv
 }
 
 function install_peewee {
   [[ $DEBUG -gt 0 ]] && set -x
-  pip-python -q install peewee
+  $PIP -q install peewee
 }
 
 function check_peewee {
   [[ $DEBUG -gt 0 ]] && set -x
   rv=1
-  count=$( pip-python freeze | grep peewee | wc -l )
+  count=$( $PIP freeze | grep peewee | wc -l )
   if [[ $count -lt 1 ]] ; then
     install_peewee
-    count=$( pip-python freeze | grep peewee | wc -l )
+    count=$( $PIP freeze | grep peewee | wc -l )
   fi
   [[ $count -gt 0 ]] && rv=0
   return $rv
@@ -74,7 +67,7 @@ if [[ $hn == ie* ]]; then
   check_python_pip || croak "python-pip not found or failed install"
   
   # Verify peewee is installed
-  check_peewee
+  check_peewee || croak "peewee not found or failed install"
 fi
 
 # Verify PYTHONPATH
@@ -82,7 +75,7 @@ export PYTHONPATH
 
 # Clean & Update database
 /usr/bin/python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
-$BIN/collect_stats.py
+$BIN/rpt_collect_stats.py
 
 # Generate reports
 for str in basepaths daily; do
