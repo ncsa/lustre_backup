@@ -66,6 +66,8 @@ def process_options():
     parser.add_option( "--rmdays", metavar='N',
         help="Remove backup records older than N days." )
     parser.add_option( '-D', '--debug', action="store_true" )
+    parser.add_option( '-M', '--missing_dars', action="store_true",
+        help="Show missing dar report (experimenta)" )
     parser.set_defaults( 
         dir="/u/system/backup/archive",
         fix=False,
@@ -258,7 +260,7 @@ def fix_or_report():
         print( "Locked Dirs".center( HDR_LEN, '-' ) )
         print_dir_current_stats( locked_dirs )
 
-    if len( missing_dar_dirs ) > 0:
+    if OPTS.missing_dars and len( missing_dar_dirs ) > 0:
         print( "Missing Darfile".center( HDR_LEN, '-' ) )
         print_dir_current_stats( missing_dar_dirs )
 
