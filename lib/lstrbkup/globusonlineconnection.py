@@ -8,7 +8,6 @@
 
 import logging
 import serviceprovider
-import globusendpoint
 import globus_sdk
 import os
 import os.path
@@ -70,21 +69,19 @@ class GlobusOnlineConnection( object ):
         label=None,
         verify_checksum=False
         ): 
-        # TODO - REPLACE WITH transfer_client.submit_transfer
-        # SEE ALSO globus_sdk.TransferData
+
         self._verify()
         for e in ( src_endpoint, tgt_endpoint ): 
-            self._activate_endpoint( e )
-        go_Txfr = globusonline.transfer.api_client.Transfer(
-            submission_id,
+            self._activate_endpoint( e ) # meeded?
+        go_Txfr = globus_sdk.TransferData(
             src_endpoint,
             tgt_endpoint,
             label=label,
             verify_checksum=verify_checksum )
         go_Txfr.add_item( src_fn, tgt_fn )
         try:
-            ( code, reason, results ) = self.api.transfer( go_Txfr )
-        except ( globusonline.transfer.api_client.ClientError ) as e:
+            ( code, reason, results ) = self.transfer_client.submit_transfer( go_Txfr )
+        except ( GlobusAPIError) as e:
             code = e.status_code
             reason = e.message
         if code != 202:
@@ -93,26 +90,28 @@ class GlobusOnlineConnection( object ):
 
 
     def submission_id( self ):
-        # TODO - REPLACE WITH transfer_client.get_submission_id
         self._verify()
-        ( code, reason, results ) = self.api.submission_id()
-        if code != 200:
+        sid = self.transfer_client.get_submission_id()
+        ( code, reason, results ) = [sid[x] for x in ['code', 'message', 'value']]
+        if sid['code'] != 200:
             msg = "failed getting new submission id"
             raise GlobusError( msg, code, reason )
         return results[ 'value' ]
 
 
     def get_transfer_details( self, task_id ):
-        # TODO - REPLACE WITH transfer_client.get_task
         logging.debug( ">>>Enter: taskid='{0}'".format( task_id ) )
         self._verify()
         try:
-            ( code, reason, results ) = self.api.task( task_id )
+            gt = transfer_client.get_task( task_id )
+            ( code, reason, results ) = [gt[x] for x in ['code', 'message', 'value']]
+
         # Differentiate between:
         # 1. non-fatal errors (ie: connection issues)
         #    TODO - don't know yet what a non-fatal error looks like
         # 2. fatal errors (everything else)
-        except ( globusonline.transfer.api_client.InterfaceError ) as e:
+        # Can differentiate the Exceptions, see https://globus-sdk-python.readthedocs.io/en/stable/exceptions/#globus_sdk.exc.GlobusError
+        except ( GlobusError ) as e:
             msg = str( e )
             err = FatalGlobusError( msg, -1, "internal globus api error" )
             logging.error( err )
@@ -127,17 +126,16 @@ class GlobusOnlineConnection( object ):
 
 
     def get_subtask_details( self, task_id ):
-        # TODO - REPLACE WITH transfer_client.task_successful_transfers
+
         self._verify()
         try:
-            #( code, reason, results ) = self.api.subtask_list( task_id )
             ( code, reason, results ) = self.api.task_successful_transfers( task_id )
-        except ( globusonline.transfer.api_client.InterfaceError ) as e:
+        except ( APIError ) as e:
             msg = str( e )
             err = FatalGlobusError( msg, -1, "internal globus api error" )
             logging.error( err )
             raise err
-        except ( globusonline.transfer.api_client.ClientError ) as e:
+        except ( GlobusError ) as e:
             msg = str( e )
             err = NonFatalGlobusError( msg, -1, "subtasks not yet available" )
             raise err
@@ -150,38 +148,26 @@ class GlobusOnlineConnection( object ):
 
 
     def _activate_endpoint( self, endpoint_name ):
-        # TODO - REPLACE WITH transfer_client.endpoint_activate
         """ Activate the endpoint, if needed.
         """
         logging.debug( ">>>ENTER" )
         try:
-            endpoint = self.endpoints[ endpoint_name ]
-        except KeyError:
-            endpoint = globusendpoint.GlobusEndpoint( endpoint_name )
-        if not endpoint.needs_activation():
+            endpoint = self.transferclient.endpoint_autoactivate( endpoint_name )
+        except e:
+            logging.error( "AutoActivation of ", endpoint_name," failed: ", e )
+            logging.debug( ">>>EXIT" )
             return
-        self._verify()
-        ( code, reason, reqs ) = self.api.endpoint_activation_requirements( 
-            endpoint_name=endpoint_name, type="delegate_proxy" )
-        if reason != "OK":
-            msg = "Error getting activation requirements for endpoint '{0}'".format( endpoint_name )
-            raise GlobusError( msg, code, reason ) 
-        
-        pubkey = reqs.get_requirement_value("delegate_proxy", "public_key")
-        lifetime_secs = int( self.isp.globus_endpoint_activation_lifetime )
-        lifetime_hours = lifetime_secs / 3600
-        proxy = globusonline.transfer.api_client.x509_proxy.create_proxy_from_file(
-            issuer_cred_file=self.isp.x509_proxy,
-            public_key=pubkey, 
-            lifetime_hours=lifetime_hours )
-        reqs.set_requirement_value("delegate_proxy", "proxy_chain", proxy)
-        ( code, reason, activation_results ) = self.api.endpoint_activate( 
-            endpoint_name=endpoint_name,
-            filled_requirements=reqs,
-            if_expires_in=globusendpoint.GlobusEndpoint.reactivation_threshold )
-        if code != 200:
-            raise GlobusError( "activate endpoint failed", code, reason )
-        endpoint.set_expiration( activation_results['expires_in'] )
+        if endpoint['code'] == 'AutoActivationFailed':
+            logging.error('Endpoint({}) Not Active! Error! Source message: {}'
+                .format(endpoint_name, endpoint['message']))
+        elif endpoint['code'] == 'AutoActivated.CachedCredential':
+            logging.debug('Endpoint({}) autoactivated using a cached credential.'
+                .format(endpoint_name))
+        elif endpoint['code'] == 'AutoActivated.GlobusOnlineCredential':
+            logging.debug(('Endpoint({}) autoactivated using a built-in Globus '
+                    'credential.').format(endpoint_name))
+        elif endpoint['code'] == 'AlreadyActivated':
+            debug('Endpoint({}) already active until at least'.format(endpoint_name))
         logging.debug( ">>>EXIT" )
 
 
