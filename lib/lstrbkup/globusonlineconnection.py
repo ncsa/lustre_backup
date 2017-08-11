@@ -14,6 +14,7 @@ import os.path
 import ssl
 import subprocess
 import json
+import pprint
 from lustrebackupexceptions import *
 
 class GlobusOnlineConnection( object ):
@@ -22,6 +23,7 @@ class GlobusOnlineConnection( object ):
     """
 
     def __new__( cls, *a, **k ):
+        cls.transfer_client = None
         if not hasattr( cls, '_inst' ):
             cls._inst = super( GlobusOnlineConnection, cls ).__new__( cls, *a, **k )
         return cls._inst
@@ -32,17 +34,28 @@ class GlobusOnlineConnection( object ):
             super( GlobusOnlineConnection, self ).__init__( *a, **k )
             self.isp = None
             self.tokens = None
-            self.transfer_client = None
             self._firsttime_init()
 
-
+    #AUTH_STYLE=self._oauth_init()
+    #AUTH_STYLE=self._oauth_confidential_init
     def _firsttime_init( self ):
         self._firsttime = False
         self.isp = serviceprovider.ServiceProvider()
-        self._verify()
         self._oauth_init()
 
+    #
+    # Use this with a confidential client registration, see: https://docs.globus.org/api/auth/reference/#client_credentials_grant
+    def _oauth_confidential_init(self):
+        """ Globus Confidential App Oauth 
+        """
+        client = globus_sdk.ConfidentialAppAuthClient(self.isp.globus_client_id, self.isp.globus_client_secret)
+        token_response = client.oauth2_client_credentials_tokens()
+        access_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
+        authorizer = globus_sdk.AccessTokenAuthorizer(access_token=access_token)
+        self.transfer_client = globus_sdk.TransferClient(authorizer=authorizer)
 
+    #
+    # Use this one for by-hand initial and and refresh-tokens
     def _oauth_init( self ):
         """ Prepare Globus Oauth
             Borrows extensively from:
@@ -70,38 +83,30 @@ class GlobusOnlineConnection( object ):
         verify_checksum=False
         ): 
 
-        self._verify()
-        for e in ( src_endpoint, tgt_endpoint ): 
-            self._activate_endpoint( e ) # meeded?
-        go_Txfr = globus_sdk.TransferData(
+        #self._verify()
+        #for e in ( src_endpoint, tgt_endpoint ): 
+            #self._activate_endpoint( e ) # meeded?
+        go_Txfr = globus_sdk.TransferData(self.transfer_client,
             src_endpoint,
             tgt_endpoint,
             label=label,
             verify_checksum=verify_checksum )
         go_Txfr.add_item( src_fn, tgt_fn )
-        try:
-            ( code, reason, results ) = self.transfer_client.submit_transfer( go_Txfr )
-        except ( GlobusAPIError) as e:
-            code = e.status_code
-            reason = e.message
-        if code != 202:
-            raise NonFatalGlobusError( "Unable to start new transfer", code, reason )
-        return results
+        ret = self.transfer_client.submit_transfer( go_Txfr )
+        pprint.pprint(ret)
+        return ret['transfer_result']
 
 
     def submission_id( self ):
-        self._verify()
+        #self._verify()
         sid = self.transfer_client.get_submission_id()
-        ( code, reason, results ) = [sid[x] for x in ['code', 'message', 'value']]
-        if sid['code'] != 200:
-            msg = "failed getting new submission id"
-            raise GlobusError( msg, code, reason )
-        return results[ 'value' ]
+        pprint.pprint(sid)
+        return sid[ 'value' ]
 
 
     def get_transfer_details( self, task_id ):
         logging.debug( ">>>Enter: taskid='{0}'".format( task_id ) )
-        self._verify()
+        #self._verify()
         try:
             gt = transfer_client.get_task( task_id )
             ( code, reason, results ) = [gt[x] for x in ['code', 'message', 'value']]
@@ -127,7 +132,7 @@ class GlobusOnlineConnection( object ):
 
     def get_subtask_details( self, task_id ):
 
-        self._verify()
+        #self._verify()
         try:
             ( code, reason, results ) = self.api.task_successful_transfers( task_id )
         except ( APIError ) as e:
@@ -171,47 +176,6 @@ class GlobusOnlineConnection( object ):
         logging.debug( ">>>EXIT" )
 
 
-    def _verify( self ):
-        self._verify_proxy()
-
-
-    def _verify_proxy( self ):
-        logging.debug( ">>>ENTER" )
-        proxyfile = self.isp.x509_proxy
-        needs_reset = True
-        if os.path.isfile( proxyfile ):
-            cmd = [ "/usr/bin/grid-proxy-info",
-                "-exists",
-                "-file", proxyfile,
-                "-valid", "12:00" ]
-            rc = subprocess.call( cmd )
-            if rc == 0:
-                needs_reset = False
-        if needs_reset:
-            self._reset_proxy()
-        logging.debug( ">>>EXIT" )
-
-
-    def _reset_proxy( self ):
-        logging.debug( ">>>ENTER" )
-        secs_raw = int( self.isp.globus_proxy_lifetime )
-        valid = "{0}:{1}".format( secs_raw / 3600, ( secs_raw % 3600 ) / 60 )
-        cmd = [ "/usr/bin/grid-proxy-init",
-            "-cert", self.isp.x509_cert,
-            "-key", self.isp.x509_key,
-            "-out", self.isp.x509_proxy,
-            "-valid", valid ]
-        subp = subprocess.Popen( cmd, 
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE )
-        ( output, errput ) = subp.communicate()
-        rc = subp.returncode
-        if rc != 0:
-            raise GlobusError( msg="Failed to reset proxy.",
-                code=rc,
-                reason=errput )
-        logging.debug( ">>>EXIT" )
-
-
     def _load_tokens( self ):
         """ Load a set of saved tokens. """
         filepath = self.isp.globus_token_file
@@ -224,11 +188,11 @@ class GlobusOnlineConnection( object ):
             raise GlobusError( msg=msg, code=-1, reason="" )
 
 
-    def _save_tokens( self, token_reponse ):
+    def _save_tokens( self, tokens ):
         """ Set local tokens attribute AND save tokens to a file. """
         # Passing token_reponse as parameter allows this function to also be used as the
         # callback function for globus_sdk.RefreshTokenAuthorizer
-        self.tokens = token_response.by_resource_provider
+        self.tokens = tokens.by_resource_server
         filepath = self.isp.globus_token_file
         with open( filepath, 'w' ) as f:
             json.dump( self.tokens, f )
@@ -267,14 +231,46 @@ class GlobusOnlineConnection( object ):
 if __name__ == "__main__":
 
     import pprint
-    logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
-    isp = serviceprovider.ServiceProvider()
-    isp.loadConfig( "lustre_backup.cfg" )
-    go = GlobusOnlineConnection()
+    import traceback
+    import sys
+    import mover
+    import transfer
+    try:
+        logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
+        isp = serviceprovider.ServiceProvider()
+        isp.loadConfig( "conf/lustre_backup.cfg" )
 
-    print( "Task List" )
-    rv = go.task_list()
-    pprint.pprint( rv )
+
+        go = GlobusOnlineConnection()
+
+        print( "Task List" )
+        rv = go.task_list()
+        [pprint.pprint(i['task_id']) for i in rv]
+        rv = go.endpoint_server_list('ncsa#BlueWaters')
+        [pprint.pprint(i['uri']) for i in rv['DATA']]
+        rv = go.endpoint_server_list('ncsa#BlueWaters')
+        [pprint.pprint(i['uri']) for i in rv['DATA']]
+
+        for ep in go.endpoint_search('ncsa'):
+            print(ep['display_name'])
+
+        mvr = mover.Mover()
+        t = transfer.Transfer.start_new(
+        src_endpoint='d59900ef-6d04-11e5-ba46-22000b92c6ec',
+    	dst_endpoint='d599008e-6d04-11e5-ba46-22000b92c6ec',
+		src_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
+		dst_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
+        basepath='/' )
+        #	print( "Initiated transfer: {0}".format( t ) )
+        mvr._save_transfer( t )
+        print( "Saved transfer: {0}".format( t ) )
+        print( "Transfer status:\n{0}".format( pprint.pformat( t.info ) ) )
+        mvr.check_open_transfers( events.StartOfSemidayEvent() )
+
+        print ('Bye')
+    except Exception as e:
+        traceback.print_exc(file=sys.stdout)
+
 
 #    go._verify_proxy()
 #

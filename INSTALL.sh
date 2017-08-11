@@ -33,7 +33,7 @@ if [[ -f /etc/centos-release && ! -x /usr/bin/scl  ]]; then
   yum -y update
   yum -y install python27 swig m2crypto devtoolset-6-gcc-c++ \
     bzip2-devel zlib-devel lzo-devel xz-devel libgcrypt-devel \
-    autoconf automake glibc-static  libattr-dev
+    autoconf automake glibc-static  libattr-dev sudo
   exec scl enable $(scl -l) $0
 fi
 
@@ -46,7 +46,7 @@ PYVERS=$(echo "python --version" | scl enable python27 bash 2>&1 | cut -d' ' -f2
 #
 # python packages 
 #
-easy_install globus-sdk globusonline-transfer-api-client rpyc
+easy_install globus-sdk globusonline-transfer-api-client rpyc ptvsd
 
 #
 # Build and install DAR
