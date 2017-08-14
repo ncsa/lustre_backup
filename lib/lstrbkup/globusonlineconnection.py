@@ -16,6 +16,7 @@ import subprocess
 import json
 import pprint
 from lustrebackupexceptions import *
+import exceptions
 
 class GlobusOnlineConnection( object ):
     """ Custom interface to globusonline to hide access details.
@@ -24,6 +25,8 @@ class GlobusOnlineConnection( object ):
 
     def __new__( cls, *a, **k ):
         cls.transfer_client = None
+        #cls.auth_style = 'confidential'
+        cls.auth_style = 'native'
         if not hasattr( cls, '_inst' ):
             cls._inst = super( GlobusOnlineConnection, cls ).__new__( cls, *a, **k )
         return cls._inst
@@ -41,7 +44,11 @@ class GlobusOnlineConnection( object ):
     def _firsttime_init( self ):
         self._firsttime = False
         self.isp = serviceprovider.ServiceProvider()
-        self._oauth_init()
+        if self.auth_style == 'confidential':
+            self._oauth_confidential_init()
+        elif self.auth_style == 'native':
+            self._oauth_init()
+        
 
     #
     # Use this with a confidential client registration, see: https://docs.globus.org/api/auth/reference/#client_credentials_grant
@@ -83,9 +90,8 @@ class GlobusOnlineConnection( object ):
         verify_checksum=False
         ): 
 
-        #self._verify()
-        #for e in ( src_endpoint, tgt_endpoint ): 
-            #self._activate_endpoint( e ) # meeded?
+        for e in ( tgt_endpoint, src_endpoint ): 
+            self._activate_endpoint( e )
         go_Txfr = globus_sdk.TransferData(self.transfer_client,
             src_endpoint,
             tgt_endpoint,
@@ -94,7 +100,7 @@ class GlobusOnlineConnection( object ):
         go_Txfr.add_item( src_fn, tgt_fn )
         ret = self.transfer_client.submit_transfer( go_Txfr )
         pprint.pprint(ret)
-        return ret['transfer_result']
+        return ret
 
 
     def submission_id( self ):
@@ -157,11 +163,48 @@ class GlobusOnlineConnection( object ):
         """
         logging.debug( ">>>ENTER" )
         try:
-            endpoint = self.transferclient.endpoint_autoactivate( endpoint_name )
-        except e:
-            logging.error( "AutoActivation of ", endpoint_name," failed: ", e )
-            logging.debug( ">>>EXIT" )
-            return
+            if self.auth_style == 'confidential':
+                endpoint = self.transfer_client.endpoint_autoactivate( endpoint_name )
+                self.logging(">>>>EXIT")
+                return
+            reqs_doc = self.transfer_client.endpoint_get_activation_requirements(endpoint_name)
+            if reqs_doc['activated']:
+                logging.debug("activated")
+                logging.debug(">>>>EXIT")
+                return
+            if reqs_doc.supports_auto_activation:
+                logging.debug( "Do autoactivation" )
+                pubkey = [r['value'] for r in reqs_doc['DATA'] if r['name'] == 'public_key']
+                lifetime_secs = int( self.isp.globus_endpoint_activation_lifetime )
+                lifetime_hours = lifetime_secs / 3600
+                proxy = globus_sdk.AuthClient.create_proxy_from_file(
+                    issuer_cred_file=self.isp.x509_proxy,
+                    public_key=pubkey, 
+                    lifetime_hours=lifetime_hours )
+                reqs_doc.set_requirement_value("delegate_proxy", "proxy_chain", proxy)
+                endpoint = self.transfer_client.endpoint_autoactivate(
+                    endpoint_name=endpoint_name,
+                    filled_requirements=reqs,
+                    if_expires_in=globus_sdk.AuthClient.GlobusEndpoint.reactivation_threshold)
+                endpoint = self.transfer_client.endpoint_autoactivate( endpoint_name )
+                endpoint.set_expiration( activation_results['expires_in'] )
+                if endpoint['code'] == 'AutoActivationFailed':
+                    logging.error( "AutoActivation of ", endpoint_name," failed: ", e )
+                else:
+                    logging.debug( ">>>EXIT" )
+                    return
+            # Not autoactivation
+            logging.debug( "Not autoactivated, try web" )
+            if not reqs_doc.supports_web_activation:
+                logging.error( "Weird endpoint, no autoactivation, no web activation" )
+                return
+            logging.debug("Requirements: {}".format(endpoint))
+
+        except Exception as ex:
+            logging.error("_activate_endpoint failed: ", ex)
+        return
+            
+           
         if endpoint['code'] == 'AutoActivationFailed':
             logging.error('Endpoint({}) Not Active! Error! Source message: {}'
                 .format(endpoint_name, endpoint['message']))
@@ -239,8 +282,6 @@ if __name__ == "__main__":
         logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
         isp = serviceprovider.ServiceProvider()
         isp.loadConfig( "conf/lustre_backup.cfg" )
-
-
         go = GlobusOnlineConnection()
 
         print( "Task List" )
@@ -252,12 +293,12 @@ if __name__ == "__main__":
         [pprint.pprint(i['uri']) for i in rv['DATA']]
 
         for ep in go.endpoint_search('ncsa'):
-            print(ep['display_name'])
+            print(ep['display_name'], ' ',)
 
         mvr = mover.Mover()
         t = transfer.Transfer.start_new(
-        src_endpoint='d59900ef-6d04-11e5-ba46-22000b92c6ec',
-    	dst_endpoint='d599008e-6d04-11e5-ba46-22000b92c6ec',
+        src_endpoint='d59900ef-6d04-11e5-ba46-22000b92c6ec',    #bw
+    	dst_endpoint=isp.lts_endpoint,      #ncsabwbackup#bwbackup from conf
 		src_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
 		dst_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
         basepath='/' )
