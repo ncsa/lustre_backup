@@ -1,3 +1,4 @@
+import versioncheck
 ###
 # Provide a simple, interface to globus online.  Hide underlying
 # access details to be able to switch methods without changing the

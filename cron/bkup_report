@@ -74,7 +74,7 @@ fi
 export PYTHONPATH
 
 # Clean & Update database
-/usr/bin/python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
+python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
 $BIN/rpt_collect_stats.py
 
 # Generate reports

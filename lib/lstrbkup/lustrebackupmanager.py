@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!
+import versioncheck
 
 #Native/installed imports
 import os

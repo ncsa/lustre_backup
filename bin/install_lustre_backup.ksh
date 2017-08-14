@@ -24,7 +24,7 @@ for fn in lustre_backup_manager lustre_backup_service; do
   set +x
 done
 
-/usr/bin/easy_install "globusonline-transfer-api-client==0.10.16"
+#/usr/bin/easy_install "globusonline-transfer-api-client==0.10.16"
 
 /sbin/sysctl -w kernel.shmmax=68719476736
 

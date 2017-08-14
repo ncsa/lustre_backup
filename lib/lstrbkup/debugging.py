@@ -1,4 +1,5 @@
-#!/usr/local/bin/python2.7
+#!python
+import versioncheck
 
 # DEBUG code from
 # http://www.dalkescientific.com/writings/diary/archive/2005/04/20/tracing_python_code.html

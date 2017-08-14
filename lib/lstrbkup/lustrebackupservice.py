@@ -1,5 +1,5 @@
-#!/usr/bin/python
-
+#!python
+import versioncheck
 # Standard imports
 import rpyc
 import os
