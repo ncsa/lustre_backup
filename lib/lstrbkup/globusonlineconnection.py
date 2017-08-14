@@ -25,8 +25,6 @@ class GlobusOnlineConnection( object ):
 
     def __new__( cls, *a, **k ):
         cls.transfer_client = None
-        #cls.auth_style = 'confidential'
-        cls.auth_style = 'native'
         if not hasattr( cls, '_inst' ):
             cls._inst = super( GlobusOnlineConnection, cls ).__new__( cls, *a, **k )
         return cls._inst
@@ -39,19 +37,17 @@ class GlobusOnlineConnection( object ):
             self.tokens = None
             self._firsttime_init()
 
-    #AUTH_STYLE=self._oauth_init()
-    #AUTH_STYLE=self._oauth_confidential_init
     def _firsttime_init( self ):
         self._firsttime = False
         self.isp = serviceprovider.ServiceProvider()
-        if self.auth_style == 'confidential':
+        if self.isp.auth_style == 'confidential':
             self._oauth_confidential_init()
-        elif self.auth_style == 'native':
+        elif self.isp.auth_style == 'native':
             self._oauth_init()
         
-
     #
     # Use this with a confidential client registration, see: https://docs.globus.org/api/auth/reference/#client_credentials_grant
+    # in .cfg:   auth_style = confidential
     def _oauth_confidential_init(self):
         """ Globus Confidential App Oauth 
         """
@@ -62,7 +58,8 @@ class GlobusOnlineConnection( object ):
         self.transfer_client = globus_sdk.TransferClient(authorizer=authorizer)
 
     #
-    # Use this one for by-hand initial and and refresh-tokens
+    # Use this one for "interactive-style" initial and and refresh-tokens: 
+    # in .cfg:  auth_style = confidential
     def _oauth_init( self ):
         """ Prepare Globus Oauth
             Borrows extensively from:
