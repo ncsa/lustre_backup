@@ -96,14 +96,12 @@ class GlobusOnlineConnection( object ):
             verify_checksum=verify_checksum )
         go_Txfr.add_item( src_fn, tgt_fn )
         ret = self.transfer_client.submit_transfer( go_Txfr )
-        pprint.pprint(ret)
         return ret
 
 
     def submission_id( self ):
         #self._verify()
         sid = self.transfer_client.get_submission_id()
-        pprint.pprint(sid)
         return sid[ 'value' ]
 
 
