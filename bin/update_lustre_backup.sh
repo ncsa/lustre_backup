@@ -15,7 +15,7 @@ fi
 PYVERS=$(python --version 2>&1 | cut -d' ' -f2)
 [[ $PYVERS > '2.7.0' ]] || exec scl enable python27 "$0 $@"
 
-easy_install globus-sdk rpyc ptvsd
+pip install --upgrade globus-sdk rpyc ptvsd
 
 service lustre_backup_manager stop || true
 service lustre_backup_service stop || true
