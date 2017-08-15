@@ -25,7 +25,6 @@ class GlobusOnlineConnection( object ):
     """
 
     def __new__( cls, *a, **k ):
-        cls.transfer_client = None
         if not hasattr( cls, '_inst' ):
             cls._inst = super( GlobusOnlineConnection, cls ).__new__( cls, *a, **k )
         return cls._inst
