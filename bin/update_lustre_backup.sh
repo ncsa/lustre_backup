@@ -17,8 +17,8 @@ PYVERS=$(python --version 2>&1 | cut -d' ' -f2)
 
 easy_install globus-sdk rpyc ptvsd
 
-service lustre_backup_manager stop
-service lustre_backup_service stop
+service lustre_backup_manager stop || true
+service lustre_backup_service stop || true
 
 
 mkdir -p $BASE || true
@@ -30,10 +30,6 @@ for fn in lustre_backup_manager lustre_backup_service; do
   ln -s "$src_fn" "$tgt_fn"
   set +x
 done
-
-#/usr/bin/easy_install "globusonline-transfer-api-client==0.10.16"
-
-/sbin/sysctl -w kernel.shmmax=68719476736
 
 chkconfig lustre_backup_service on
 chkconfig lustre_backup_manager on
