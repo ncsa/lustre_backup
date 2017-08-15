@@ -54,8 +54,9 @@ class GlobusOnlineConnection( object ):
         """
         client = globus_sdk.ConfidentialAppAuthClient(self.isp.globus_client_id, self.isp.globus_client_secret)
         token_response = client.oauth2_client_credentials_tokens()
-        access_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
-        authorizer = globus_sdk.AccessTokenAuthorizer(access_token=access_token)
+        #access_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
+        transfer_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
+        authorizer = globus_sdk.AccessTokenAuthorizer(transfer_token)
         self.transfer_client = globus_sdk.TransferClient(authorizer=authorizer)
 
     #
@@ -277,15 +278,19 @@ if __name__ == "__main__":
     try:
         logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
         isp = serviceprovider.ServiceProvider()
-        isp.loadConfig( "conf/lustre_backup.cfg" )
+        isp.loadConfig( "conf/confidential-cli-lbackup.cfg" )
         go = GlobusOnlineConnection()
+
+        # endpoints
+        for ep in go.transfer_client.endpoint_search(filter_scope="my-endpoints"):
+            print("[{}] {}".format(ep["id"], ep["display_name"]))
 
         print( "Task List" )
         rv = go.task_list()
         [pprint.pprint(i['task_id']) for i in rv]
         rv = go.endpoint_server_list('ncsa#BlueWaters')
         [pprint.pprint(i['uri']) for i in rv['DATA']]
-        rv = go.endpoint_server_list('ncsa#BlueWaters')
+        rv = go.endpoint_server_list('ncsabwbackup#ncsabwbackup')
         [pprint.pprint(i['uri']) for i in rv['DATA']]
 
         for ep in go.endpoint_search('ncsa'):
