@@ -13,7 +13,7 @@ fi
 # Doublecheck the python version, re-exec under scl if necessary
 #
 PYVERS=$(python --version 2>&1 | cut -d' ' -f2)
-[[ $PYVERS > '2.7.0' ]] || exec scl enable python27 $0
+[[ $PYVERS > '2.7.0' ]] || exec scl enable python27 "$0" "$@"
 
 easy_install globus-sdk rpyc ptvsd
 

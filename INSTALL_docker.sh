@@ -34,7 +34,7 @@ if [[ -f /etc/centos-release && ! -x /usr/bin/scl  ]]; then
   yum -y install python27 swig m2crypto devtoolset-6-gcc-c++ \
     bzip2-devel zlib-devel lzo-devel xz-devel libgcrypt-devel \
     autoconf automake glibc-static  libattr-dev sudo
-  exec scl enable $(scl -l) $0
+  exec scl enable $(scl -l) "$0" "$@"
 fi
 
 #
