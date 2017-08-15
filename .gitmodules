@@ -1,0 +1,3 @@
+[submodule "conf"]
+	path = conf
+	url = git@git.ncsa.illinois.edu:draila/lustre_backup_configs.git
