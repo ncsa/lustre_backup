@@ -46,7 +46,7 @@ PYVERS=$(echo "python --version" | scl enable python27 bash 2>&1 | cut -d' ' -f2
 #
 # python packages 
 #
-easy_install globus-sdk globusonline-transfer-api-client rpyc ptvsd
+easy_install globus-sdk rpyc ptvsd
 
 #
 # Build and install DAR
