@@ -13,7 +13,7 @@ fi
 # Doublecheck the python version, re-exec under scl if necessary
 #
 PYVERS=$(python --version 2>&1 | cut -d' ' -f2)
-[[ $PYVERS > '2.7.0' ]] || exec scl enable python27 "$0" "$@"
+[[ $PYVERS > '2.7.0' ]] || exec scl enable python27 "$0 $@"
 
 easy_install globus-sdk rpyc ptvsd
 
@@ -35,8 +35,8 @@ done
 
 /sbin/sysctl -w kernel.shmmax=68719476736
 
-chckonfig lustre_backup_service on
-chckonfig lustre_backup_manager on
+chkconfig lustre_backup_service on
+chkconfig lustre_backup_manager on
 service lustre_backup_manager start
 service lustre_backup_service start
 
