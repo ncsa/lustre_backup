@@ -1,4 +1,4 @@
-#!python
+
 import versioncheck
 import os
 import datetime

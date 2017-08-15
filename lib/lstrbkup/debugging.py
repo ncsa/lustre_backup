@@ -1,4 +1,4 @@
-#!python
+
 import versioncheck
 
 # DEBUG code from

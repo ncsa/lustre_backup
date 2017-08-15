@@ -1,4 +1,4 @@
-#!
+
 import versioncheck
 
 #Native/installed imports

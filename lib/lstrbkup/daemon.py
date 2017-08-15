@@ -1,4 +1,4 @@
-#!python
+
 import versioncheck
 import sys, os, os.path, time, atexit
 from signal import SIGTERM 

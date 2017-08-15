@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 BASE=/mnt/a/settools/lustrebackup
 
