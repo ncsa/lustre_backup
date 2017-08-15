@@ -268,7 +268,7 @@ class GlobusOnlineConnection( object ):
 
 
 if __name__ == "__main__":
-
+    CONF = 'conf/lustre_backup.cfg'
     import pprint
     import traceback
     import sys
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     try:
         logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
         isp = serviceprovider.ServiceProvider()
-        isp.loadConfig( "conf/confidential-cli-lbackup.cfg" )
+        isp.loadConfig( CONF )
         go = GlobusOnlineConnection()
 
         # endpoints
