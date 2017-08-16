@@ -110,8 +110,7 @@ class GlobusOnlineConnection( object ):
         logging.debug( ">>>Enter: taskid='{0}'".format( task_id ) )
         #self._verify()
         try:
-            gt = transfer_client.get_task( task_id )
-            ( code, reason, results ) = [gt[x] for x in ['code', 'message', 'value']]
+            gt = self.transfer_client.get_task( task_id )
 
         # Differentiate between:
         # 1. non-fatal errors (ie: connection issues)
@@ -123,20 +122,13 @@ class GlobusOnlineConnection( object ):
             err = FatalGlobusError( msg, -1, "internal globus api error" )
             logging.error( err )
             raise err
-        if code != 200:
-            msg = "failed getting task details for task_id='{0}'".format( task_id )
-            err = FatalGlobusError( msg, code, reason )
-            logging.error( err )
-            raise err
         logging.debug( "<<<Exit" )
-        return results
+        return gt
 
 
     def get_subtask_details( self, task_id ):
-
-        #self._verify()
         try:
-            ( code, reason, results ) = self.api.task_successful_transfers( task_id )
+            sd = self._transfer_client.task_successful_transfers( task_id )
         except ( APIError ) as e:
             msg = str( e )
             err = FatalGlobusError( msg, -1, "internal globus api error" )
@@ -146,12 +138,7 @@ class GlobusOnlineConnection( object ):
             msg = str( e )
             err = NonFatalGlobusError( msg, -1, "subtasks not yet available" )
             raise err
-        if code != 200:
-            msg = "failed getting subtask details for task_id='{0}'".format( task_id )
-            err = FatalGlobusError( msg, code, reason )
-            logging.error( err )
-            raise err
-        return results
+        return sd
 
 
     def _activate_endpoint( self, endpoint_name ):
@@ -275,6 +262,7 @@ if __name__ == "__main__":
     import sys
     import mover
     import transfer
+    import events
     try:
         logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
         isp = serviceprovider.ServiceProvider()

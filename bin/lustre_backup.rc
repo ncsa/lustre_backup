@@ -27,4 +27,4 @@ pypathmunge ${LIBPATH} after
 
 LSTRBKUPCONFDIR=${CONFDIR} \
 PYTHONPATH=${PYTHONPATH} \
-python ${LIBPATH}/lstrbkup/lustre_backup.py "${0} $*"
+python ${LIBPATH}/lstrbkup/lustre_backup.py "${0}" "$@"
