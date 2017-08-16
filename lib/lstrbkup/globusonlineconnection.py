@@ -160,6 +160,7 @@ class GlobusOnlineConnection( object ):
         logging.debug( ">>>ENTER" )
         try:
             if self.auth_style == 'confidential':
+                logging.debug('confidential auth')
                 endpoint = self.transfer_client.endpoint_autoactivate( endpoint_name )
                 self.logging(">>>>EXIT")
                 return
