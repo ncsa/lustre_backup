@@ -1,5 +1,5 @@
-#!/usr/bin/env python
 
+import versioncheck
 import os
 import os.path
 import subprocess

@@ -1,5 +1,5 @@
-#!/usr/bin/python
 
+import versioncheck
 import os
 import datetime
 import pprint

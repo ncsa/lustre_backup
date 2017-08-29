@@ -1,3 +1,4 @@
+import versioncheck
 import ConfigParser
 import datetime
 import os

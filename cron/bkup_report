@@ -6,6 +6,12 @@
 
 DEBUG=0
 
+#
+# Doublecheck the python version, re-exec under scl if necessary
+#
+PYVERS=$(python --version 2>&1 | cut -d' ' -f2)
+[[ $PYVERS > '2.7.0' ]] || exec scl enable python27 "$0 $@"
+
 BASE=/mnt/a/settools/lustrebackup
 BIN=$BASE/bin
 PYTHONPATH=$BASE/lib
@@ -74,7 +80,7 @@ fi
 export PYTHONPATH
 
 # Clean & Update database
-/usr/bin/python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
+python $PYTHONPATH/lstrbkup/stats_orm.py -d -c
 $BIN/rpt_collect_stats.py
 
 # Generate reports

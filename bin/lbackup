@@ -1,0 +1,6 @@
+#!/bin/bash
+
+#
+#  Run in scl for python-2.7
+#
+exec scl enable python27 "$0 $@"

@@ -300,7 +300,7 @@ class Mover( object ):
 
 if __name__ == "__main__":
 	isp = serviceprovider.ServiceProvider()
-	isp.loadConfig( os.path.join( os.getcwd(), "lustre_backup.cfg" ) )
+	isp.loadConfig( os.path.join( os.getcwd(), "conf/lustre_backup.cfg" ) )
 	mvr = Mover()
 
 #	###
