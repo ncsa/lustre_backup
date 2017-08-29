@@ -32,8 +32,8 @@ for fn in lustre_backup_manager lustre_backup_service; do
 done
 
 chkconfig lustre_backup_service on
-chkconfig lustre_backup_manager on
-service lustre_backup_manager start
+#chkconfig lustre_backup_manager on
+#service lustre_backup_manager start
 service lustre_backup_service start
 
 echo "DONE"

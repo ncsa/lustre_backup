@@ -18,40 +18,75 @@ import json
 import pprint
 from lustrebackupexceptions import *
 import exceptions
+import ConfigParser
+import delegate_proxy
+
+class Singleton(type):
+    def __init__(cls, name, bases, dict):
+        super(Singleton, cls).__init__(name, bases, dict)
+        cls.instance = None 
+
+    def __call__(cls,*args,**kw):
+        if cls.instance is None:
+            cls.instance = super(Singleton, cls).__call__(*args, **kw)
+        return cls.instance
 
 class GlobusOnlineConnection( object ):
+    #__metaclass__ = Singleton
     """ Custom interface to globusonline to hide access details.
         Implements the Singleton design pattern.
     """
-
-    def __new__( cls, *a, **k ):
-        if not hasattr( cls, '_inst' ):
-            cls._inst = super( GlobusOnlineConnection, cls ).__new__( cls, *a, **k )
-        return cls._inst
-
-
-    def __init__( self, *a, **k ):
-        if not hasattr( self, "_firsttime" ):
-            super( GlobusOnlineConnection, self ).__init__( *a, **k )
-            self.isp = None
-            self.tokens = None
-            self._firsttime_init()
-
-    def _firsttime_init( self ):
-        self._firsttime = False
-        self.isp = serviceprovider.ServiceProvider()
-        if self.isp.auth_style == 'confidential':
+    
+    def __init__( self, configfile=None ):
+        self.isp = None
+        self.tokens = None
+        self.cfg = None
+        self.cfgfile = configfile
+        if configfile:
+            self._read_conf()
+        else:
+            self.isp = serviceprovider.ServiceProvider()
+            self.cfg = self.isp.cfg
+        self._configure()
+        if self.auth_style == 'confidential':
             self._oauth_confidential_init()
-        elif self.isp.auth_style == 'native':
+        elif self.auth_style == 'native':
             self._oauth_init()
-        
+
+    def getconf(self, name):
+        try:
+            return self.cfg.get("GENERAL", name)
+        except:
+            return None
+
+    def _read_conf(self):
+        """ Read a config file and return the ConfigParser object.
+        INPUT: fn = string, filename to load from
+        OUTPUT: instance of ConfigParser
+        """
+        cfg = ConfigParser.SafeConfigParser( )
+        cfg.optionxform = str
+        fh = open( self.cfgfile )
+        cfg.readfp( fh )
+        fh.close()
+        self.cfg = cfg
+
+    def _configure(self):
+        self.globus_token_file = self.getconf("globus_token_file")
+        self.auth_style = self.getconf("auth_style")
+        self.globus_client_id = self.getconf("globus_client_id")
+        self.globus_client_secret = self.getconf("globus_client_secret")
+        self.globus_endpoint_activation_lifetime = self.getconf("globus_endpoint_activation_lifetime")
+        self.x509_proxy = self.getconf("x509_proxy")
+
+
     #
     # Use this with a confidential client registration, see: https://docs.globus.org/api/auth/reference/#client_credentials_grant
     # in .cfg:   auth_style = confidential
     def _oauth_confidential_init(self):
         """ Globus Confidential App Oauth 
         """
-        client = globus_sdk.ConfidentialAppAuthClient(self.isp.globus_client_id, self.isp.globus_client_secret)
+        client = globus_sdk.ConfidentialAppAuthClient(self.globus_client_id, self.globus_client_secret)
         token_response = client.oauth2_client_credentials_tokens()
         #access_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
         transfer_token = token_response.by_resource_server['transfer.api.globus.org']['access_token']
@@ -68,7 +103,7 @@ class GlobusOnlineConnection( object ):
         """
         self._load_tokens()
         transfer_tokens = self.tokens[ 'transfer.api.globus.org' ]
-        auth_client = globus_sdk.NativeAppAuthClient( client_id=self.isp.globus_client_id )
+        auth_client = globus_sdk.NativeAppAuthClient( client_id=self.globus_client_id )
         authorizer = globus_sdk.RefreshTokenAuthorizer(
             transfer_tokens[ 'refresh_token' ],
             auth_client,
@@ -145,6 +180,7 @@ class GlobusOnlineConnection( object ):
         """ Activate the endpoint, if needed.
         """
         logging.debug( ">>>ENTER" )
+        self._verify_proxy()
         try:
             if self.auth_style == 'confidential':
                 logging.debug('confidential auth')
@@ -154,26 +190,31 @@ class GlobusOnlineConnection( object ):
             reqs_doc = self.transfer_client.endpoint_get_activation_requirements(endpoint_name)
             if reqs_doc['activated']:
                 logging.debug("activated")
-                logging.debug(">>>>EXIT")
-                return
+                #logging.debug(">>>>EXIT")
+                #return
             if reqs_doc.supports_auto_activation:
                 logging.debug( "Do autoactivation" )
-                pubkey = [r['value'] for r in reqs_doc['DATA'] if r['name'] == 'public_key']
-                lifetime_secs = int( self.isp.globus_endpoint_activation_lifetime )
+                lifetime_secs = int( self.globus_endpoint_activation_lifetime )
                 lifetime_hours = lifetime_secs / 3600
-                proxy = globus_sdk.AuthClient.create_proxy_from_file(
-                    issuer_cred_file=self.isp.x509_proxy,
-                    public_key=pubkey, 
-                    lifetime_hours=lifetime_hours )
-                reqs_doc.set_requirement_value("delegate_proxy", "proxy_chain", proxy)
-                endpoint = self.transfer_client.endpoint_autoactivate(
-                    endpoint_name=endpoint_name,
-                    filled_requirements=reqs,
-                    if_expires_in=globus_sdk.AuthClient.GlobusEndpoint.reactivation_threshold)
-                endpoint = self.transfer_client.endpoint_autoactivate( endpoint_name )
-                endpoint.set_expiration( activation_results['expires_in'] )
-                if endpoint['code'] == 'AutoActivationFailed':
-                    logging.error( "AutoActivation of ", endpoint_name," failed: ", e )
+                new_reqs = delegate_proxy.fill_delegate_proxy_activation_requirements(reqs_doc.data, self.x509_proxy, lifetime_hours)
+                logging.debug("filled requirements")
+                logging.debug( reqs_doc )
+                logging.debug("new_reqs")
+                logging.debug( new_reqs )
+                #activation_results = self.transfer_client.endpoint_autoactivate(
+                activation_results = self.transfer_client.endpoint_activate(
+                    endpoint_name,
+                    #endpoint_name=endpoint_name,
+                    new_reqs,
+                    if_expires_in=43200 )
+                    #if_expires_in=globus_sdk.AuthClient.GlobusEndpoint.reactivation_threshold)
+                #endpoint = self.transfer_client.endpoint_autoactivate( endpoint_name )
+                logging.debug("endpoint_autoactivate complete")
+                #endpoint.set_expiration( activation_results['expires_in'] )
+                if activation_results["code"].startswith("AutoActivationFailed"):
+                    #logging.error( "AutoActivation of ", endpoint_name," failed: ", e )
+                    #logging.error( "AutoActivation of ", self.transfer_client.get_endpoint(endpoint_name)["display_name"]," failed: " )
+                    logging.error( activation_results )
                 else:
                     logging.debug( ">>>EXIT" )
                     return
@@ -182,10 +223,11 @@ class GlobusOnlineConnection( object ):
             if not reqs_doc.supports_web_activation:
                 logging.error( "Weird endpoint, no autoactivation, no web activation" )
                 return
-            logging.debug("Requirements: {}".format(endpoint))
+            #logging.debug("Requirements: {}".format(endpoint))
 
         except Exception as ex:
-            logging.error("_activate_endpoint failed: ", ex)
+            logging.error("_activate_endpoint failed: ")
+            raise ex
         return
             
            
@@ -205,7 +247,7 @@ class GlobusOnlineConnection( object ):
 
     def _load_tokens( self ):
         """ Load a set of saved tokens. """
-        filepath = self.isp.globus_token_file
+        filepath = self.globus_token_file
         if not os.path.exists( filepath ):
             self._native_app_authentication()
         with open( filepath, 'r' ) as f:
@@ -220,7 +262,7 @@ class GlobusOnlineConnection( object ):
         # Passing token_reponse as parameter allows this function to also be used as the
         # callback function for globus_sdk.RefreshTokenAuthorizer
         self.tokens = tokens.by_resource_server
-        filepath = self.isp.globus_token_file
+        filepath = self.globus_token_file
         with open( filepath, 'w' ) as f:
             json.dump( self.tokens, f )
 
@@ -231,7 +273,7 @@ class GlobusOnlineConnection( object ):
         redirect_uri = 'https://auth.globus.org/v2/web/auth-code'
         scopes = ( 'openid email profile '
                    'urn:globus:auth:scope:transfer.api.globus.org:all' )
-        auth_client = globus_sdk.NativeAppAuthClient( client_id=self.isp.globus_client_id )
+        auth_client = globus_sdk.NativeAppAuthClient( client_id=self.globus_client_id )
         auth_client.oauth2_start_flow( requested_scopes=scopes,
                                        redirect_uri=redirect_uri,
                                        refresh_tokens=True )
@@ -250,10 +292,45 @@ class GlobusOnlineConnection( object ):
         token_response = auth_client.oauth2_exchange_code_for_tokens( auth_code )
         self._save_tokens( token_response )
 
+    def _verify( self ):
+        self._verify_proxy()
 
-    def __getattr__( self, name ):
-        return getattr( self.transfer_client, name )
 
+    def _verify_proxy( self ):
+        logging.debug( ">>>ENTER" )
+        proxyfile = self.isp.x509_proxy
+        needs_reset = True
+        if os.path.isfile( proxyfile ):
+            cmd = [ "/usr/bin/grid-proxy-info",
+                "-exists",
+                "-file", proxyfile,
+                "-valid", "12:00" ]
+            rc = subprocess.call( cmd )
+            if rc == 0:
+                needs_reset = False
+        if needs_reset:
+            self._reset_proxy()
+        logging.debug( ">>>EXIT" )
+
+
+    def _reset_proxy( self ):
+        logging.debug( ">>>ENTER" )
+        secs_raw = int( self.isp.globus_proxy_lifetime )
+        valid = "{0}:{1}".format( secs_raw / 3600, ( secs_raw % 3600 ) / 60 )
+        cmd = [ "/usr/bin/grid-proxy-init",
+            "-cert", self.isp.x509_cert,
+            "-key", self.isp.x509_key,
+            "-out", self.isp.x509_proxy,
+            "-valid", valid ]
+        subp = subprocess.Popen( cmd, 
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE )
+        ( output, errput ) = subp.communicate()
+        rc = subp.returncode
+        if rc != 0:
+            raise GlobusError( msg="Failed to reset proxy.",
+                code=rc,
+                reason=errput )
+        logging.debug( ">>>EXIT" )
 
 if __name__ == "__main__":
     CONF = 'conf/lustre_backup.cfg'
@@ -265,31 +342,36 @@ if __name__ == "__main__":
     import events
     try:
         logging.basicConfig( level=logging.DEBUG, format="%(asctime)s [%(filename)s(%(lineno)s)] %(message)s" )
+        
+        go = GlobusOnlineConnection(CONF)
+        #go.configure(CONF)
+        #go._firsttime_init()
+
         isp = serviceprovider.ServiceProvider()
         isp.loadConfig( CONF )
-        go = GlobusOnlineConnection()
 
+        ''' go = GlobusOnlineConnection()
         # endpoints
         for ep in go.transfer_client.endpoint_search(filter_scope="my-endpoints"):
             print("[{}] {}".format(ep["id"], ep["display_name"]))
 
         print( "Task List" )
-        rv = go.task_list()
+        rv = go.transfer_client.task_list()
         [pprint.pprint(i['task_id']) for i in rv]
-        rv = go.endpoint_server_list('ncsa#BlueWaters')
+        rv = go.transfer_client.endpoint_server_list('ncsa#BlueWaters')
         [pprint.pprint(i['uri']) for i in rv['DATA']]
-        rv = go.endpoint_server_list('ncsabwbackup#ncsabwbackup')
+        rv = go.transfer_client.endpoint_server_list('ncsabwbackup#ncsabwbackup')
         [pprint.pprint(i['uri']) for i in rv['DATA']]
 
-        for ep in go.endpoint_search('ncsa'):
-            print(ep['display_name'], ' ',)
-
+        for ep in go.transfer_client.endpoint_search('ncsa'):
+            print(ep['display_name'], ' ',) '''
+ 
         mvr = mover.Mover()
         t = transfer.Transfer.start_new(
         src_endpoint='d59900ef-6d04-11e5-ba46-22000b92c6ec',    #bw
     	dst_endpoint=isp.lts_endpoint,      #ncsabwbackup#bwbackup from conf
-		src_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
-		dst_filename='/u/sciteam/draila/2_MOD021KM.A2007184.1645.006.2014231113821.hdf',
+		src_filename='/u/sciteam/draila/aa',
+		dst_filename='/projects/BW-System/bw_lustre_backups/aa',
         basepath='/' )
         #	print( "Initiated transfer: {0}".format( t ) )
         mvr._save_transfer( t )

@@ -1,5 +1,5 @@
-
-import versioncheck
+#!/opt/rh/python27/root/usr/bin/python2.7
+#import versioncheck
 import os
 import os.path
 import datetime
